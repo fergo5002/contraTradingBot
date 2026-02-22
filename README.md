@@ -46,7 +46,7 @@ Contra is a configurable trading bot that monitors Reddit communities, interpret
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/yourusername/contra.git
+git clone https://github.com/fergo5002/contra.git
 cd contra
 ```
 
