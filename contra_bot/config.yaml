@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────
+#  ContraBot Configuration
+# ─────────────────────────────────────────────
+
+# Subreddits to monitor (list of subreddit names, no r/ prefix)
+subreddits:
+  - wallstreetbets
+  # - stocks
+  # - investing
+  # - options
+  # - CryptoCurrency
+  # - Bitcoin
+
+# Sentiment direction:
+#   "against"  → invert the crowd's signal (bet against them)
+#   "with"     → follow the crowd's signal
+mode: against
+
+# Which asset classes to trade
+markets_enabled:
+  - stocks
+  - crypto
+  # - options    # Uncomment to enable options (requires Alpaca options approval)
+
+# Minimum LLM confidence score (0.0–1.0) required to act on a signal
+min_confidence: 0.7
+
+# Maximum USD value per individual position
+max_position_size_usd: 500
+
+# Maximum number of simultaneously open positions
+max_open_positions: 10
+
+# How often to poll Reddit for new posts (seconds)
+poll_interval_seconds: 60
+
+# Only act on posts, never on comments
+posts_only: true
+
+# Auto-close positions after this many days
+holding_period_days: 7
+
+# Minimum post author karma to consider (very-low-karma accounts are often bots/shills)
+min_author_karma: 100
+
+# How many posts to fetch per subreddit per poll
+posts_per_poll: 25
+
+# Broker configuration
+broker: alpaca
+alpaca_base_url: https://paper-api.alpaca.markets
