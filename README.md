@@ -1,144 +1,92 @@
-# 🤖 Contra — Anti-Sentiment Trading Bot
+# Contra
 
-> *If the internet is going long, we're going short.*
+If r/wallstreetbets is buying, Contra wants to sell.
 
-Contra is a configurable trading bot that monitors Reddit communities, interprets posts as trade signals using AI, and executes the opposing position via Alpaca's paper trading API. Built initially to fade r/wallstreetbets, it's designed to work with any subreddit and any sentiment direction.
+<img src=".github/readme/demo.gif" alt="Terminal: python demo.py reads five sample posts. A GME moon post becomes a short, a parlay, a meme and a 12-karma account are skipped, and a post about dumping ETH becomes a long" width="720">
 
----
+<sub>`python demo.py`: the real filters and the real flip on five sample posts. No keys needed.</sub>
 
-## How It Works
+Contra reads new posts on a subreddit, asks Claude what the author is actually doing (ticker, long or short, how sure), flips it, and is meant to place the opposite trade on Alpaca's paper account. Every post, filter decision, signal and order lands in SQLite so you can check its working afterwards.
 
-1. **Monitor** — Polls configured subreddits for new posts (never comments)
-2. **Filter** — Discards sports bets, memes, and non-actionable noise
-3. **Interpret** — Sends posts to Claude AI to extract a structured trade signal (ticker, direction, confidence)
-4. **Invert** — Flips the signal (long → short, call → put) if running in `against` mode
-5. **Execute** — Submits the trade to Alpaca's paper trading environment
-6. **Track** — Logs every post, signal, and trade to a local SQLite database with full audit trail
+It's an experiment in whether the internet is a reliable contrarian indicator. Fake money only, and that's staying the case. It's also unfinished: see [where it's at](#where-its-at) before you trust it with even fake money.
 
----
+## What it does to a post
 
-## Features
+1. **Polls** the subreddits in `config.yaml`. Posts only, never comments.
+2. **Bins the noise** before spending a token: sports bets and parlays, image-only memes, posts with no ticker or coin in them, and authors under 100 karma.
+3. **Asks Claude** to turn what's left into a signal: ticker, asset type, direction, confidence.
+4. **Flips it** when `mode: against`. Long becomes short. Set `mode: with` to follow the crowd instead, if you're feeling brave.
+5. **Places the paper order** if confidence clears 0.7 and fewer than ten positions are open, sized to about $500 (never less than one share). Positions are closed after seven days.
+6. **Writes it all down.** Posts, filter results, signals and trades, one SQLite file.
 
-- 🔄 **Universal** — Point it at any subreddit, flip between `with` or `against` mode in config
-- 📊 **Multi-market** — Supports US stocks, crypto, and options
-- 🧠 **AI-powered signal parsing** — Uses Claude to interpret natural language posts into structured trades
-- 🚫 **Smart filtering** — Automatically discards sports bets, image-only memes, and low-signal posts
-- 💾 **Full audit trail** — Every post, filter result, signal, and trade stored in SQLite
-- 📈 **Position management** — Enforces position limits, max exposure, and auto-closes stale trades
-- 🖥️ **Live dashboard** — Startup summary of open positions and P&L via rich console output
+Each run opens with a dashboard of open positions and profit and loss.
 
----
+## Try it without keys
 
-## Stack
-
-| Component | Tool |
-|---|---|
-| Reddit ingestion | PRAW |
-| Signal parsing | Anthropic Claude API |
-| Broker | Alpaca (paper trading) |
-| Database | SQLite |
-| Language | Python 3.10+ |
-
----
-
-## Getting Started
-
-### 1. Clone the repo
-
-```bash
-git clone https://github.com/fergo5002/contra.git
-cd contra
-```
-
-### 2. Install dependencies
-
-```bash
+```sh
+git clone https://github.com/fergo5002/contraTradingBot.git
+cd contraTradingBot/contra_bot
 pip install -r requirements.txt
+python demo.py
 ```
 
-### 3. Set up credentials
+The demo runs the real filter and inversion code on sample posts. The one thing it fakes is Claude's reading of each post, which is written out in `demo.py` so you can see the shape the bot expects back.
 
-Copy `.env.example` to `.env` and fill in your keys:
+## Run it for real (on paper)
 
-```bash
-cp .env.example .env
-```
+You need three sets of keys:
 
-You'll need:
+- **Reddit:** make a "script" app at [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) and copy the client ID and secret.
+- **Anthropic:** an API key from [console.anthropic.com](https://console.anthropic.com).
+- **Alpaca:** paper trading keys from the paper dashboard at [alpaca.markets](https://alpaca.markets).
 
-- **Reddit API credentials** — Create an app at [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps). Select "script", give it any name, and copy the client ID and secret.
-- **Anthropic API key** — Get one at [console.anthropic.com](https://console.anthropic.com)
-- **Alpaca paper trading keys** — Sign up at [alpaca.markets](https://alpaca.markets) and generate keys from the paper trading dashboard
-
-### 4. Configure the bot
-
-Edit `config.yaml` to set your subreddits, markets, confidence thresholds, and position limits:
-
-```yaml
-subreddits:
-  - wallstreetbets
-mode: against        # "against" or "with"
-markets_enabled:
-  - stocks
-  - crypto
-  - options
-min_confidence: 0.7
-max_position_size_usd: 500
-max_open_positions: 10
-```
-
-### 5. Run
-
-```bash
+```sh
+cp .env.example .env    # fill in the keys
 python main.py
 ```
 
----
-
-## Project Structure
-
-```
-contra/
-├── main.py               # Entry point and main loop
-├── config.yaml           # All configuration
-├── reddit_monitor.py     # Reddit post ingestion
-├── signal_parser.py      # AI-powered trade signal extraction
-├── trade_executor.py     # Alpaca order execution
-├── position_manager.py   # Open position tracking and P&L
-├── filters.py            # Sports bet / meme / noise filtering
-├── db.py                 # SQLite database layer
-├── logger.py             # Structured logging
-├── .env.example          # Environment variable template
-└── requirements.txt
-```
-
----
-
-## Adding More Subreddits
-
-Just add them to `config.yaml`:
+Everything else lives in `config.yaml`:
 
 ```yaml
 subreddits:
   - wallstreetbets
+mode: against            # or "with"
+markets_enabled:
   - stocks
-  - investing
-  - superstonk
+  - crypto
+min_confidence: 0.7
+max_position_size_usd: 500
+max_open_positions: 10
+holding_period_days: 7
+min_author_karma: 100
 ```
 
-Each subreddit is monitored independently. Posts are deduplicated per ticker to prevent the same trade being submitted multiple times.
+Add more subreddits to the list and each is polled on its own. The same ticker won't be traded twice at once.
 
----
+Alpaca won't short crypto, so in `against` mode a bullish crypto post is skipped rather than sold. Options are off by default.
 
-## Notes
+## Where it's at
 
-- This bot runs in **paper trading mode only** — no real money is ever at risk
-- Only **posts** are used as signals, never comments
-- Posts about sports betting (NFL, NBA, DraftKings, etc.) are automatically discarded
-- A post must hit the configured confidence threshold before a trade is submitted
+Unfinished, and honest about it. Reading the code turns up three bugs that stop it doing what this page describes:
 
----
+- **It never places an order.** `signal_parser.py` saves each signal before returning it, and the 24-hour duplicate check in `position_manager.py` then finds that same signal and skips the trade. Every time.
+- **Options would be flipped twice.** The signal goes from call to put *and* from long to short, so the bot would sell a put, which is a bet in the same direction as the crowd.
+- **Crypto tickers get mangled on the way back.** Trades are stored as `ETH/USD`, and closing or pricing them turns that into `ETH/USD/USD`, so crypto positions wouldn't close or de-duplicate.
 
-## License
+The demo above doesn't touch any of those paths, which is why it works.
 
-MIT
+## Inside
+
+| File | Job |
+|---|---|
+| `main.py` | the loop and the dashboard |
+| `reddit_monitor.py` | fetching posts with PRAW |
+| `filters.py` | the free, no-API checks |
+| `signal_parser.py` | the Claude call and the flip |
+| `position_manager.py` | limits, duplicates, closing stale positions |
+| `trade_executor.py` | Alpaca orders |
+| `db.py` | the SQLite audit trail |
+
+Python 3.10 or newer. MIT licensed.
+
+Not financial advice. If it were good financial advice, it wouldn't be on GitHub.
